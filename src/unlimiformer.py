@@ -109,7 +109,16 @@ class Unlimiformer(Generic[ModelType]):
                 self.inject_training_hooks(self.model)
         self.original_model_train_func(mode)
         
-    def inject_hooks(self, model):
+    def inject_hooks(self, model):#-------key step
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -inject_hooks method instantiates the capturers as members of the
+        ActivationCapturer class.
+        -inject_hooks uses ActivationCapturer to capture the activations (keys
+        and values) from the chosen set of layers during the forward pass.
+        -These activations are then added to the index via the Datastore class
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        
         if self.hooks_injected:
             return
         # Inject our activation_capturer to capture the activations at every forward pass
@@ -128,6 +137,7 @@ class Unlimiformer(Generic[ModelType]):
                 self.register_hook(layer, capturer)
                 self.activation_capturer.append(capturer)
 
+#-------this seems to be the key step
         # Inject our main function after the main attention function
         attention_layers_to_run = self.attention_op_to_run(self.layer_begin, self.layer_end)
         for layer in attention_layers_to_run:
@@ -194,9 +204,16 @@ class Unlimiformer(Generic[ModelType]):
             decoder_layer.forward = self.create_noninjected_decoder_layer_func(decoder_layer.forward, decoder_layer)
 
     def create_self_attn_pre_forward_hook(self, original_self_attn_forward_func):
-        def self_attention_pre_forward_hook(*args, **kwargs):
-            kwargs['past_key_value'] = None
-            return original_self_attn_forward_func(*args, **kwargs)
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        seems to replace the original cross-attention forward function with one
+        that incorporates the retrieved top-k keys and values into the attention
+        computation.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+        def self_attention_pre_forward_hook(*args,
+        **kwargs): kwargs['past_key_value'] = None return
+        original_self_attn_forward_func(*args, **kwargs)
         
         return self_attention_pre_forward_hook
 
@@ -846,16 +863,22 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
 
     def create_key_value(self, encoder_hidden_states, decoder_layer):
         # (batch, time, hidden_dim)
-        attention = decoder_layer.encoder_attn
+        attention = decoder_layer.encoder_attn #-------attention function here
         # key, value: (batch, heads, time, attn_dim)
         key = attention.k_proj(encoder_hidden_states)
-        key = key.view(key.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
+        key = key.view(key.shape[0],
+                       -1,
+                       attention.num_heads,
+                       attention.head_dim).transpose(1, 2).contiguous()
         value = attention.v_proj(encoder_hidden_states)
-        value = value.view(value.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
+        value = value.view(value.shape[0],
+                           -1,
+                           attention.num_heads,
+                           attention.head_dim).transpose(1, 2).contiguous()
         # key, value: (batch, heads, time, attn_dim)
         return key, value 
 
-    def process_key_value(self, capturers):
+    def process_key_value(self, capturers):#-------what are capturers?
         key_capturer, value_capturer = capturers
         key, value = key_capturer.captured, value_capturer.captured
         # (batch, time, heads, attn_dim)
@@ -863,8 +886,14 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
 
         # query, key, value: (batch, heads, time, attn_dim)
         # query = query.view(query.shape[0], query.shape[1], attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
-        key = key.view(key.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
-        value = value.view(value.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
+        key = key.view(key.shape[0],
+                       -1,
+                       attention.num_heads,
+                       attention.head_dim).transpose(1, 2).contiguous()
+        value = value.view(value.shape[0],
+                           -1,
+                           attention.num_heads,
+                           attention.head_dim).transpose(1, 2).contiguous()
         
         return key, value
 
@@ -873,16 +902,27 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
         attention = self.model.base_model.decoder.layers[-1].encoder_attn
         # query: (batch, heads, time, attn_dim)
         # query = output.view(output.shape[0], output.shape[1], attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
-        query = output.view(output.shape[0], output.shape[1], attention.num_heads, attention.head_dim).contiguous()
+        query = output.view(output.shape[0],
+                            output.shape[1],
+                            attention.num_heads,
+                            attention.head_dim).contiguous()
         return query
 
     def get_kv_projections(self, layer_begin, layer_end): 
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        methods that determine which layers' outputs are indexed and captured.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         return [
             [layer.encoder_attn.k_proj, layer.encoder_attn.v_proj]
             for layer in self.model.base_model.decoder.layers[layer_begin:layer_end]
         ]
 
     def activation_to_capture(self, layer_begin, layer_end): 
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        methods that determine which layers' outputs are indexed and captured.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         if self.use_datastore:
             return [self.model.base_model.encoder.layers[-1]]
         else:
@@ -906,10 +946,20 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
     def window_size(self):
         return self.model.config.max_position_embeddings
 
-    def create_decoder_layer_args(self, hidden_states, attention_mask, encoder_hidden_states,
-                encoder_attention_mask, layer_head_mask, cross_attn_layer_head_mask,
-                past_key_value, output_attentions, position_bias,
-                encoder_decoder_position_bias, use_cache, key, value):
+    def create_decoder_layer_args(self,
+                                  hidden_states,
+                                  attention_mask,
+                                  encoder_hidden_states,
+                                  encoder_attention_mask,
+                                  layer_head_mask,
+                                  cross_attn_layer_head_mask,
+                                  past_key_value,
+                                  output_attentions,
+                                  position_bias,
+                                  encoder_decoder_position_bias,
+                                  use_cache,
+                                  key,
+                                  value):
         args = {'hidden_states': hidden_states, 
                 'attention_mask': attention_mask, 
                 'encoder_hidden_states': encoder_hidden_states, 
@@ -1017,12 +1067,18 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
         super().__init__(model, *args, **kwargs)
     
     def get_kv_projections(self, layer_begin, layer_end): 
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        methods that determine which layers' outputs are indexed and captured.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         return [
             [layer.self_attn.k_proj, layer.self_attn.v_proj]
             for layer in self.model.base_model.layers[layer_begin:layer_end]
         ]
 
     def activation_to_capture(self, layer_begin, layer_end): 
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        methods that determine which layers' outputs are indexed and captured.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         if self.use_datastore:
             return [
                 layer.input_layernorm
@@ -1059,29 +1115,80 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
         attention = self.model.base_model.layers[-1].self_attn
 
         # (batch, heads, time, attn_dim)
-        key = key.view(key.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
-        value = value.view(value.shape[0], -1, attention.num_heads, attention.head_dim).transpose(1, 2).contiguous()
+        key = key.view(key.shape[0],
+                       -1,
+                       attention.num_heads,
+                       attention.head_dim
+                       ).transpose(1, 2).contiguous()
+        value = value.view(value.shape[0],
+                           -1,
+                           attention.num_heads,
+                           attention.head_dim
+                           ).transpose(1, 2).contiguous()
         
         return key, value
     
     def process_query(self, output):
         # output: (batch, time, heads * attn_dim)
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -This method reshapes the hidden states from the decoder into a suitable
+        format for the attention mechanism.
+        -It prepares the query tensors for the cross-attention operation in the
+        transformer model.
+        -Ensures the query's shape matches that of the key.
+        -'output' argument is the hidden state from the decoder's previous layer
+        -The method references the encoder's last layer's attention
+        (self.model.base_model.decoder.layers[-1].encoder_attn or
+        self.model.base_model.layers[-1].self_attn in the UnlimiformerLLaMa
+        class) to obtain the number of attention heads (num_heads) and the
+        dimension of each head (head_dim).
+        -These dimensions partition the hidden states for each attention head
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         attention = self.model.base_model.layers[-1].self_attn
         
+
+        
         # query: (batch, time, heads, attn_dim)
-        query = output.view(output.shape[0], output.shape[1], attention.num_heads, attention.head_dim).contiguous()
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        Reshaping: The hidden states are reshaped to match the expected dimensions
+        for the attention operation. Specifically, they are transformed from the
+        shape (batch, time, heads * attn_dim) to (batch, time, heads, attn_dim).
+        This reshaping is necessary because the attention operation requires
+        separate dimensions for the number of heads (heads) and the size of each
+        head (attn_dim)
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        query = output.view(output.shape[0],
+                            output.shape[1],
+                            attention.num_heads,
+                            attention.head_dim
+                            ).contiguous()
         return query
 
     def rotate_half(self, x):
-        """Rotates half the hidden dims of the input."""
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        Rotates half the hidden dims of the input. This technique allows the
+        model to maintain positional information in a more compact and efficient
+        manner, especially useful for attention mechanisms over long sequences.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+      
         x1 = x[..., : x.shape[-1] // 2]
-        x2 = x[..., x.shape[-1] // 2 :]
-        return torch.cat((-x2, x1), dim=-1)
+        x2 = x[..., x.shape[-1] // 2 :] return torch.cat((-x2, x1), dim=-1)
 
     def preprocess_query(self, query, k_proj_weight):
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        This method is projecting the query using the weight matrix k_proj_weight.
+        This projection is well-aligned with the paper's description
+        where the query is projected using a product of weight matrices before
+        the kNN search.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         # query: (batch * time, head, dim)
         attention = self.model.base_model.layers[-1].self_attn
-        num_generated = min(self.input_ids_size - self.prompt_input_ids.shape[1], self.actual_model_window_size)
+        num_generated = min(self.input_ids_size - self.prompt_input_ids.shape[1],
+                            self.actual_model_window_size)
         cos, sin = attention.rotary_emb(query, seq_len=num_generated)
         cos = cos[:,:,-1]  # [1, 1, dim]
         sin = sin[:,:,-1]  # [1, 1, dim]
@@ -1089,49 +1196,95 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
         # sin = sin[-1].unsqueeze(0)  # [bs, 1, seq_len, dim]
         query = (query * cos) + (self.rotate_half(query) * sin)
         
-        k_proj = k_proj_weight.view(1, self.num_heads, query.shape[-1], k_proj_weight.shape[0]) # (1, num_heads, attn_dim, embed_dim)
+        k_proj = k_proj_weight.view(1,
+                                    self.num_heads,
+                                    query.shape[-1],
+                                    k_proj_weight.shape[0]
+                                    ) # (1, num_heads, attn_dim, embed_dim)
         k_proj_l = k_proj[..., :k_proj.shape[-2] // 2, :]
         k_proj_r = k_proj[..., k_proj.shape[-2] // 2:, :]
         k_proj_rotated = torch.cat([-k_proj_l, k_proj_r], dim=-2)
 
         datastore_query = query.unsqueeze(-2) # (batch * beam, num_heads, 1, attn_dim)
-        datastore_query = torch.matmul(datastore_query, k_proj + k_proj_rotated) # (batch * beam, num_heads, 1, embed_dim)
+        datastore_query = torch.matmul(datastore_query,
+                                       k_proj + k_proj_rotated
+                                       ) # (batch * beam, num_heads, 1, embed_dim)
         datastore_query = datastore_query.squeeze(-2)  # (batch * beam, num_heads, embed_dim)
         return datastore_query
 
-    def post_process_retrieved(self, embeddings, k_proj_layer, v_proj_layer, top_search_key_indices):
+    def post_process_retrieved(self,
+                               embeddings,
+                               k_proj_layer,
+                               v_proj_layer,
+                               top_search_key_indices):
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        After retrieving top-k keys and values from the kNN search, the
+        post_process_retrieved method is called to further process the
+        embeddings, which includes applying rotary embeddings to the keys.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         embed_dim = embeddings.shape[-1]
-        k_weight = k_proj_layer.weight.view(1, 1, self.num_heads, embed_dim // self.num_heads, embed_dim).transpose(-2,-1) # (1, 1, heads, embed_dim, attn_dim)
+        k_weight = k_proj_layer.weight.view(1,
+                                            1,
+                                            self.num_heads,
+                                            embed_dim // self.num_heads,
+                                            embed_dim
+                                            ).transpose(-2,-1) # (1, 1, heads, embed_dim, attn_dim)
         k_bias = 0
         if k_proj_layer.bias is not None:
-            k_bias = k_proj_layer.bias.view(1, self.num_heads, embed_dim // self.num_heads).unsqueeze(-2).unsqueeze(0)
-        v_weight = v_proj_layer.weight.view(1, 1, self.num_heads, embed_dim // self.num_heads, embed_dim).transpose(-2,-1)  # (1, heads, embed_dim, attn_dim)
+            k_bias = k_proj_layer.bias.view(1,
+                                            self.num_heads,
+                                            embed_dim // self.num_heads
+                                            ).unsqueeze(-2).unsqueeze(0)
+        v_weight = v_proj_layer.weight.view(1,
+                                            1,
+                                            self.num_heads,
+                                            embed_dim // self.num_heads,
+                                            embed_dim
+                                            ).transpose(-2,-1)  # (1, heads, embed_dim, attn_dim)
         v_bias = 0
         if v_proj_layer.bias is not None:
-            v_bias = v_proj_layer.bias.view(1, self.num_heads, embed_dim // self.num_heads).unsqueeze(-2).unsqueeze(0)
+            v_bias = v_proj_layer.bias.view(1,
+                                            self.num_heads,
+                                            embed_dim // self.num_heads).unsqueeze(-2).unsqueeze(0)
         # new_keys, new_values: (batch, beam, head, encoder_len, attn_dim)
         retrieved_keys = torch.matmul(embeddings, k_weight) + k_bias # (beam, head, encoder_len, embed_dim)
         retrieved_values = torch.matmul(embeddings, v_weight) + v_bias # (beam, head, encoder_len, embed_dim)
 
         attention = self.model.base_model.layers[-1].self_attn
-        cos, sin = attention.rotary_emb(retrieved_values, seq_len=self.hidden_states[0].shape[1])
+        cos, sin = attention.rotary_emb(retrieved_values,
+                                        seq_len=self.hidden_states[0].shape[1])
         cos = cos.squeeze(1).squeeze(0)  # [seq_len, dim]
         sin = sin.squeeze(1).squeeze(0)  # [seq_len, dim]
         if self.prompt_input_ids.shape[1] > self.actual_model_window_size:
-            # scale the top key indices to the actual model window size, such that the model will not see
-            # positional embeddings that did not appear at training time
-            scaled_key_indices = ((top_search_key_indices / self.prompt_input_ids.shape[1]) * self.actual_model_window_size).int()
+            # scale the top key indices to the actual model window size, such  
+            # that the model will not see positional embeddings that did not    
+            # appear at training time                                      
+
+            scaled_key_indices = (
+                    (top_search_key_indices
+                     / self.prompt_input_ids.shape[1])
+                    * self.actual_model_window_size
+                    ).int()
         else:
             scaled_key_indices = top_search_key_indices
         # top_search_key_indices = top_search_key_indices.to(cos.device)
         scaled_key_indices = scaled_key_indices.to(cos.device)
         cos = cos[scaled_key_indices]  # [bs, 1, seq_len, dim]
         sin = sin[scaled_key_indices]  # [bs, 1, seq_len, dim]
-        retrieved_keys = (retrieved_keys * cos) + (self.rotate_half(retrieved_keys) * sin)
+        retrieved_keys = (retrieved_keys * cos
+                          + self.rotate_half(retrieved_keys) * sin)
         return retrieved_keys, retrieved_values
         
 
 class ActivationCapturer(nn.Module):
+
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    capture the projections of the keys and values as computed by the encoder
+    layers (k_proj and v_proj)
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
     def __init__(self, layer, capture_input=False):
         super().__init__()
         self.layer = layer

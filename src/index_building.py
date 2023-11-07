@@ -21,14 +21,36 @@ class DatastoreBatch():
             self.indices[i].move_to_gpu()
 
     def add_keys(self, keys, num_keys_to_add_at_a_time=100000):
-        for i in range(self.batch_size):
-            self.indices[i].add_keys(keys[i], num_keys_to_add_at_a_time)
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -Activations (keys and values) that are captured during a forward pass
+        are vectors that are added to the kNN index.
+        -These vectors are what the kNN search will run against.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        for i in range(self.batch_size): self.indices[i].add_keys(keys[i],
+        num_keys_to_add_at_a_time)
         
     def train_index(self, keys):
+        
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+         used to train the index when using a quantized index like IndexIVFPQ.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         for index, example_keys in zip(self.indices, keys):
             index.train_index(example_keys)
     
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    Below, the search and search_and_reconstruct methods perform the kNN search.
+    The actual kNN operation is performed in the search method of the Datastore.
+    class using the FAISS index's search function. This function takes a set of.
+    query vectors and a value k and returns the top k closest vectors in the   .
+    index for each query                                                       .
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
     def search(self, queries, k):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -search method retrieves the indices of the k closest vectors to query
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         found_scores, found_values = [], []
         for i in range(self.batch_size):
             scores, values = self.indices[i].search(queries[i], k)
@@ -37,6 +59,9 @@ class DatastoreBatch():
         return torch.stack(found_scores, dim=0), torch.stack(found_values, dim=0)
 
     def search_and_reconstruct(self, queries, k):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -search_and_reconstruct method also retrieves the vectors themselves.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         found_scores, found_values = [], []
         found_vectors = []
         for i in range(self.batch_size):
@@ -47,6 +72,9 @@ class DatastoreBatch():
         return torch.stack(found_scores, dim=0), torch.stack(found_values, dim=0), torch.stack(found_vectors, dim=0)
 
 class Datastore():
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    This class manages a batch of Datastore instances, allowing multiple kNN searches to be conducted in parallel, one for each instance in the batch.
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     def __init__(self, dim, use_flat_index=False, gpu_index=False, verbose=False, device=None) -> None:
         self.dimension = dim
         self.device = device if device is not None else torch.device('cuda' if gpu_index else 'cpu')
