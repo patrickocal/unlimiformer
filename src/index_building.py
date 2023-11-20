@@ -105,6 +105,9 @@ class Datastore():
             self.index = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), self.device.index, self.index, co)
     
     def train_index(self, keys):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+         used to train the index when using a quantized index like IndexIVFPQ.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         if self.use_flat_index:
             self.add_keys(keys=keys, index_is_trained=True)
         else:
@@ -126,6 +129,11 @@ class Datastore():
                 self.move_to_gpu()
 
     def add_keys(self, keys, num_keys_to_add_at_a_time=1000000, index_is_trained=False):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -Activations (keys and values) that are captured during a forward pass
+        are vectors that are added to the kNN index.
+        -These vectors are what the kNN search will run against.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         self.keys = keys
         if not self.use_flat_index and index_is_trained:
             start = 0
@@ -145,8 +153,18 @@ class Datastore():
 
         # self.logger.info(f'Adding total {start} keys')
         # self.logger.info(f'Adding took {time.time() - start_time} s')
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    Below, the search and search_and_reconstruct methods perform the kNN search.
+    The actual kNN operation is performed in the search method of the Datastore.
+    class using the FAISS index's search function. This function takes a set of.
+    query vectors and a value k and returns the top k closest vectors in the   .
+    index for each query                                                       .
+    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
     def search_and_reconstruct(self, queries, k):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -search_and_reconstruct method also retrieves the vectors themselves.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         if len(queries.shape) == 1: # searching for only 1 vector, add one extra dim
             self.logger.info("Searching for a single vector; unsqueezing")
             queries = queries.unsqueeze(0)
@@ -157,6 +175,9 @@ class Datastore():
         return scores, values, vectors
     
     def search(self, queries, k):
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        -search method retrieves the indices of the k closest vectors to query
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         # model_device = queries.device
         # model_dtype = queries.dtype
         if len(queries.shape) == 1: # searching for only 1 vector, add one extra dim
@@ -169,10 +190,19 @@ class Datastore():
         #     queries = queries.to(self.device)
         if self.use_flat_index:
             if self.gpu_index:
-                scores, values = faiss.knn_gpu(faiss.StandardGpuResources(), queries, self.keys, k, 
-                    metric=faiss.METRIC_INNER_PRODUCT, device=self.device.index)
+                scores, values = faiss.knn_gpu(faiss.StandardGpuResources(),
+                                               queries,
+                                               self.keys,
+                                               k,
+                                               metric=faiss.METRIC_INNER_PRODUCT,
+                                               device=self.device.index
+                                               )
             else:
-                scores, values = faiss.knn(queries, self.keys, k, metric=faiss.METRIC_INNER_PRODUCT)
+                scores, values = faiss.knn(queries,
+                                           self.keys,
+                                           k,
+                                           metric=faiss.METRIC_INNER_PRODUCT
+                                           )
                 scores = torch.from_numpy(scores).to(queries.dtype)
                 values = torch.from_numpy(values) #.to(model_dtype)
         else:

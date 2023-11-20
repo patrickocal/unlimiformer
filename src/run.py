@@ -399,7 +399,10 @@ def main():
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
 
-    parser = CustomHfArgumentParser((ModelArguments, DataTrainingArguments, TrainingOverridesArguments, UnlimiformerArguments))
+    parser = CustomHfArgumentParser((ModelArguments,
+                                     DataTrainingArguments,
+                                     TrainingOverridesArguments,
+                                     UnlimiformerArguments))
     model_args, data_args, training_args, unlimiformer_args = parser.parse_dictionary_and_args()
     
     set_up_logging(training_args)
@@ -520,7 +523,7 @@ def main():
         }
         if unlimiformer_args.random_unlimiformer_training:
             model = RandomTrainingUnlimiformer.convert_model(model, **unlimiformer_kwargs)
-        else:
+        else:#-------key step here
             model = Unlimiformer.convert_model(model, **unlimiformer_kwargs)
 
     model.config.use_cache = True
@@ -919,7 +922,7 @@ def process_eval_set(data_args, preprocess_function_kwargs, training_args, untok
         )
     return eval_dataset
 
-
+#-----------???how do we assign files to data_args.train_file, ...
 def _get_dataset(data_args, model_args, training_args):
     # Get the datasets: you can either provide your own CSV/JSON training and evaluation files (see below)
     # or just provide the name of one of the public datasets available on the hub at https://huggingface.co/datasets/
@@ -1035,7 +1038,7 @@ def extract_oracle_sentences(input_sequence, output, max_length, tokenizer, roug
     
     return joined_selection        
     
-
+#-----------chopping up the data
 def chunk_dataset_function(examples, chunk_size):
     input_ids_str = 'input_ids'
     attention_mask_str = 'attention_mask'
@@ -1045,9 +1048,17 @@ def chunk_dataset_function(examples, chunk_size):
     chunked = {k: [] for k in keys}
     for ex in zip(*values):
         ex = dict(zip(keys, ex))
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        We think that the following loop works by taking the column wiht the
+        longest string and chunking based on that length
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         for i in range(0, len(ex[input_ids_str]), chunk_size):
             chunked_input_ids_st = ex[input_ids_str][i:i + chunk_size]
             chunked_attention_mask = ex[attention_mask_str][i:i + chunk_size]
+            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            ***KG line***
+            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
             if sum(chunked_attention_mask) < 10:
                 continue
