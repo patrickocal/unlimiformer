@@ -48,10 +48,10 @@ class Unlimiformer(Generic[ModelType]):
         self.tokenizer = tokenizer
         self.unlimiformer_training = unlimiformer_training
         self.use_datastore = use_datastore
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         In FAISS, a flat index is a basic form of indexing where all the vectors
         are stored without any compression or partitioning.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.flat_index = flat_index
 
         self.reconstruct_embeddings = reconstruct_embeddings
@@ -80,32 +80,32 @@ class Unlimiformer(Generic[ModelType]):
 
     def break_into(self, model):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         calculates and sets the actual_model_window_size, which is likely
         used to define the scope or range of the model's attention or processing
         at any given time.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.actual_model_window_size = self.window_size()
         if self.model_encoder_max_len is None:
             self.model_encoder_max_len = self.actual_model_window_size
 
         self.window_margin = int(self.model_encoder_max_len * self.chunk_overlap / 2)
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         configures the number of attention heads (num_heads) and selectively 
         chooses specific heads for processing if specified (self.specific_head).
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.num_heads = model.config.num_attention_heads
         if self.specific_head is None:
             self.head_nums = Ellipsis # torch.arange(0, self.num_heads, device=self.device)
         else:
             self.head_nums = self.specific_head
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         sets up hooks and overrides for the model's eval and train methods
         (self.pre_eval_hook and self.pre_train_hook). This allows custom
         behavior to be injected into the model's evaluation and training
         routines.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.hooks_injected = False
         self.training_hooks_injected = False
         self.original_forward_func = model.forward
@@ -133,32 +133,32 @@ class Unlimiformer(Generic[ModelType]):
         
     def inject_hooks(self, model):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         #-------key step
         -inject_hooks method instantiates the capturers as members of the
         ActivationCapturer class.
         -inject_hooks uses ActivationCapturer to capture the activations (keys
         and values) from the chosen set of layers during the forward pass.
         -These activations are then added to the index via the Datastore class
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         This part checks if hooks have already been injected (self.hooks_injected). If so, the method returns immediately to avoid redundant hook injections.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         if self.hooks_injected:
             return
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Determine the layers (attention_layers_to_capture) from which activations (keys and values) need to be captured. Then, it initializes an empty list to store capturers for these layers.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         # Inject our activation_capturer to capture the activations at every forward pass
         attention_layers_to_capture = self.activation_to_capture(self.layer_begin, self.layer_end)
         self.activation_capturer = []
         for layer in attention_layers_to_capture:
 
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             Handle Multi-Part Layers: Some layers may have multiple components (like key and value in attention layers). For each component (k_or_v), an ActivationCapturer is created and registered as a hook on the component. These capturers are then added to the self.activation_capturer list.
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             if type(layer) is list:
                 layer_capturers = []
                 for k_or_v in layer:
@@ -167,61 +167,61 @@ class Unlimiformer(Generic[ModelType]):
                     self.register_hook(k_or_v, capturer)
                 self.activation_capturer.append(layer_capturers)
             
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             Handle Single-Part Layers: If the layer isn't a list, it directly creates and registers an ActivationCapturer for the layer.
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             else:
                 capturer = ActivationCapturer(layer, capture_input=False)
                 self.register_hook(layer, capturer)
                 self.activation_capturer.append(capturer)
 
 #-------this seems to be the key step
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Register Attention Forward Hooks: Identifies layers where the custom forward hook for attention (self.attention_forward_hook) should be applied, and then registers this hook for each such layer.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         # Inject our main function after the main attention function
         attention_layers_to_run = self.attention_op_to_run(self.layer_begin, self.layer_end)
         for layer in attention_layers_to_run:
             self.register_hook(layer, self.attention_forward_hook)
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Prepare for Modifying Decoder Layers: Determines the decoder layers to modify and initializes a list to store their original forward functions.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         decoder_layers_to_run = self.attention_layer_to_run(self.layer_begin, self.layer_end)
         self.original_decoder_layer_cross_attn_forward_funcs = []
         for i, decoder_layer in enumerate(decoder_layers_to_run):
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             Modify Decoder Layer Cross-Attention: For each decoder layer, it retrieves the cross-attention submodule, saves its original forward function, and replaces it with a custom forward function created by create_cross_attn_pre_forward_hook.
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             decoder_layer_cross_attention = self.cross_attention(decoder_layer)
             self.original_decoder_layer_cross_attn_forward_funcs.append(decoder_layer_cross_attention.forward)
             decoder_layer_cross_attention.forward = self.create_cross_attn_pre_forward_hook(decoder_layer_cross_attention.forward, i)
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Modify the Generation Process: Saves the original model.generate function and replaces it with a custom pre_generate_hook to alter the generation process.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         # Inject our hook function in the beginning of generation.
         # When the "model.generate()" will be called, it will first call our "reset_generation()" function, 
         # and only then call "model.generate()"
         self.original_generate_func = model.generate
         model.generate = self.pre_generate_hook
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Modify the Forward Pass: Replaces the model's forward method with
         pre_forward_hook to integrate Unlimiformer's functionality into the
         model's forward pass.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         model.forward = self.pre_forward_hook
         
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Modify Cache Reordering: Alters the _reorder_cache method of the model (used in beam search) with a custom reorder_cache_hook.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.original_reorder_cache_func = model._reorder_cache
         model._reorder_cache = self.reorder_cache_hook
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Finally, sets self.hooks_injected to True, indicating that the hooks have been successfully injected.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         self.hooks_injected = True
 
     def inject_training_hooks(self, model):
@@ -267,11 +267,11 @@ class Unlimiformer(Generic[ModelType]):
 
     def create_self_attn_pre_forward_hook(self, original_self_attn_forward_func):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         seems to replace the original cross-attention forward function with one
         that incorporates the retrieved top-k keys and values into the attention
         computation.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         def self_attention_pre_forward_hook(*args, **kwargs):
             kwargs['past_key_value'] = None
             return original_self_attn_forward_func(*args, **kwargs)
@@ -420,9 +420,9 @@ class Unlimiformer(Generic[ModelType]):
 
     def reset_memory(self, input_ids, attention_mask):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         called in pre_generate_hook
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
 
         if self.use_datastore:
             if self.is_encoder_decoder:
@@ -537,9 +537,9 @@ class Unlimiformer(Generic[ModelType]):
 
     def chunked_encode_input(self, input_ids, attention_mask):
         
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Called in pre_forward_hook method.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         long_inputs_encoded = []
         long_inputs_mask = []
         window_indices = self.window_indices(input_ids.shape[-1])
@@ -989,9 +989,9 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
 
     def get_kv_projections(self, layer_begin, layer_end): 
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         methods that determine which layers' outputs are indexed and captured.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
 
         return [
             [layer.encoder_attn.k_proj, layer.encoder_attn.v_proj]
@@ -999,9 +999,9 @@ class UnlimiformerBART(Unlimiformer[BartModel]):
         ]
 
     def activation_to_capture(self, layer_begin, layer_end): 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         methods that determine which layers' outputs are indexed and captured.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         if self.use_datastore:
             return [self.model.base_model.encoder.layers[-1]]
         else:
@@ -1147,18 +1147,18 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
         super().__init__(model, *args, **kwargs)
     
     def get_kv_projections(self, layer_begin, layer_end): 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         methods that determine which layers' outputs are indexed and captured.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         return [
             [layer.self_attn.k_proj, layer.self_attn.v_proj]
             for layer in self.model.base_model.layers[layer_begin:layer_end]
         ]
 
     def activation_to_capture(self, layer_begin, layer_end): 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         methods that determine which layers' outputs are indexed and captured.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         if self.use_datastore:
             return [
                 layer.input_layernorm
@@ -1211,7 +1211,7 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
     def process_query(self, output):
         # output: (batch, time, heads * attn_dim)
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         -This method reshapes the hidden states from the decoder into a suitable
         format for the attention mechanism.
         -It prepares the query tensors for the cross-attention operation in the
@@ -1224,21 +1224,21 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
         class) to obtain the number of attention heads (num_heads) and the
         dimension of each head (head_dim).
         -These dimensions partition the hidden states for each attention head
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
 
         attention = self.model.base_model.layers[-1].self_attn
         
 
         
         # query: (batch, time, heads, attn_dim)
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Reshaping: The hidden states are reshaped to match the expected dimensions
         for the attention operation. Specifically, they are transformed from the
         shape (batch, time, heads * attn_dim) to (batch, time, heads, attn_dim).
         This reshaping is necessary because the attention operation requires
         separate dimensions for the number of heads (heads) and the size of each
         head (attn_dim)
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         query = output.view(output.shape[0],
                             output.shape[1],
                             attention.num_heads,
@@ -1248,23 +1248,23 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
 
     def rotate_half(self, x):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         Rotates half the hidden dims of the input. This technique allows the
         model to maintain positional information in a more compact and efficient
         manner, especially useful for attention mechanisms over long sequences.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
       
         x1 = x[..., : x.shape[-1] // 2]
         x2 = x[..., x.shape[-1] // 2 :] return torch.cat((-x2, x1), dim=-1)
 
     def preprocess_query(self, query, k_proj_weight):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         This method is projecting the query using the weight matrix k_proj_weight.
         This projection is well-aligned with the paper's description
         where the query is projected using a product of weight matrices before
         the kNN search.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         # query: (batch * time, head, dim)
         attention = self.model.base_model.layers[-1].self_attn
         num_generated = min(self.input_ids_size - self.prompt_input_ids.shape[1],
@@ -1298,11 +1298,11 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
                                v_proj_layer,
                                top_search_key_indices):
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         After retrieving top-k keys and values from the kNN search, the
         post_process_retrieved method is called to further process the
         embeddings, which includes applying rotary embeddings to the keys.
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
 
         embed_dim = embeddings.shape[-1]
         k_weight = k_proj_layer.weight.view(1,
@@ -1360,10 +1360,10 @@ class UnlimiformerLLaMa(Unlimiformer[LlamaModel]):
 
 class ActivationCapturer(nn.Module):
 
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    """
     capture the projections of the keys and values as computed by the encoder
     layers (k_proj and v_proj)
-    """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+    """
 
     def __init__(self, layer, capture_input=False):
         super().__init__()

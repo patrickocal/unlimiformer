@@ -1049,16 +1049,16 @@ def chunk_dataset_function(examples, chunk_size):
     for ex in zip(*values):
         ex = dict(zip(keys, ex))
 
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         We think that the following loop works by taking the column wiht the
         longest string and chunking based on that length
-        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        """
         for i in range(0, len(ex[input_ids_str]), chunk_size):
             chunked_input_ids_st = ex[input_ids_str][i:i + chunk_size]
             chunked_attention_mask = ex[attention_mask_str][i:i + chunk_size]
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
             ***KG line***
-            """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+            """
 
             if sum(chunked_attention_mask) < 10:
                 continue
