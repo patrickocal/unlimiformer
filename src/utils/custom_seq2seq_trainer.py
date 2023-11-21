@@ -62,10 +62,11 @@ class CustomTrainer(Seq2SeqTrainer):
             inputs (`Dict[str, Union[torch.Tensor, Any]]`):
                 The inputs and targets of the model.
 
-                The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
-                argument `labels`. Check your model's documentation for all accepted arguments.
-            prediction_loss_only (`bool`):
-                Whether or not to ret`urn the loss only.
+                The dictionary will be unpacked before being fed to the model.
+            Most models expect the targets under the argument `labels`.
+            Check your model's documentation for all accepted arguments.
+            prediction_loss_only (`bool`): Whether or not to return the loss
+            only.
 
         Return:
             Tuple[Optional[float], Optional[torch.Tensor], Optional[torch.Tensor]]: A tuple with the loss, logits and

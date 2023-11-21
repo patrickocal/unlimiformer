@@ -207,7 +207,9 @@ class Unlimiformer(Generic[ModelType]):
         model.generate = self.pre_generate_hook
 
         """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-        Modify the Forward Pass: Replaces the model's forward method with pre_forward_hook to integrate Unlimiformer's functionality into the model's forward pass.
+        Modify the Forward Pass: Replaces the model's forward method with
+        pre_forward_hook to integrate Unlimiformer's functionality into the
+        model's forward pass.
         """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         model.forward = self.pre_forward_hook
         
@@ -391,6 +393,9 @@ class Unlimiformer(Generic[ModelType]):
         self.hooks_injected = False
 
     def remove_training_hooks(self, model):
+        """
+        resets self.long_inputs_encoded to None
+        """
         self.long_inputs_encoded, self.long_inputs_mask = None, None
         if not self.training_hooks_injected:
             return
@@ -414,6 +419,11 @@ class Unlimiformer(Generic[ModelType]):
         self.training_hooks_injected = False
 
     def reset_memory(self, input_ids, attention_mask):
+
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        called in pre_generate_hook
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         if self.use_datastore:
             if self.is_encoder_decoder:
                 self.datastore = [DatastoreBatch(dim=self.model.config.hidden_size, batch_size=input_ids.shape[0], flat_index=self.flat_index, 
@@ -526,6 +536,10 @@ class Unlimiformer(Generic[ModelType]):
             print()
 
     def chunked_encode_input(self, input_ids, attention_mask):
+        
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+        Called in pre_forward_hook method.
+        """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
         long_inputs_encoded = []
         long_inputs_mask = []
         window_indices = self.window_indices(input_ids.shape[-1])
