@@ -1,0 +1,553 @@
+\documentclass[12pt]{article}
+\linespread{1.6}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\graphicspath{{images/}}
+\usepackage{indentfirst}
+\usepackage{lipsum}
+\usepackage{color,xcolor}
+\usepackage{soul}
+\usepackage{setspace}
+\usepackage[
+backend=biber,
+style=alphabetic,
+sorting=ynt
+]{biblatex}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, positioning, fit, arrows.meta}
+\usepackage{listings}
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\small\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+
+%-----------some colors for the main figure
+\newcommand{\standardcolor}{blue}
+\newcommand{\unlimicolor}{red}
+\newcommand{\combcolor}{green}
+
+\tikzstyle{startstop} = [rectangle, rounded corners, 
+minimum width=3cm, 
+minimum height=1cm,
+text centered, 
+draw=black, 
+fill=\standardcolor!30]
+
+\tikzstyle{combFn} = [trapezium, 
+trapezium stretches=true, % A later addition
+trapezium left angle=70, 
+trapezium right angle=110, 
+minimum width=3cm, 
+minimum height=1cm, text centered, 
+draw=black, fill=\combcolor!50,
+rounded corners]
+
+\tikzstyle{unlimiFn} = [trapezium, 
+trapezium stretches=true, % A later addition
+trapezium left angle=70, 
+trapezium right angle=110, 
+minimum width=3cm, 
+minimum height=1cm, text centered, 
+draw=black, fill=\unlimicolor!50,
+rounded corners]
+
+\tikzstyle{standardFn} = [trapezium, 
+trapezium stretches=true, % A later addition
+trapezium left angle=70, 
+trapezium right angle=110, 
+minimum width=3cm, 
+minimum height=1cm, text centered, 
+draw=black, fill=\standardcolor!50,
+rounded corners]
+
+\tikzstyle{process} = [rectangle, 
+minimum width=3cm, 
+minimum height=1cm, 
+text centered, 
+text width=3cm, 
+draw=black, 
+fill=orange!30]
+\tikzstyle{decision} = [ellipse, rounded corners,
+minimum width=3cm, 
+minimum height=1cm, 
+text centered, 
+draw=black, 
+fill=\standardcolor!30]
+\tikzstyle{arrow} = [thick,->,>=stealth]
+%\usepackage{endfloat}
+\addbibresource{sections/references.bib}
+\singlespacing
+\addtolength{\oddsidemargin}{-.5in}
+\addtolength{\evensidemargin}{-.5in}
+\addtolength{\textwidth}{1in}
+
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1in}
+
+\DeclareMathOperator{\softmax}{softmax}
+%-----------------------------------------------------------
+
+\begin{document}
+\paragraph{src/unlimiformer module:}
+Standard Python modules like logging, numpy, and torch.
+transformers module for models like BART, T5, LED, Llama, etc.
+index\_building module
+Potential custom modules or classes like ActivationCapturer.
+
+\paragraph{{src/index\_building module}:}
+faiss for efficient similarity search and clustering of dense vectors.
+Standard modules like time, logging, torch, and numpy.
+
+\paragraph{src/run module:} Standard Python modules and nltk for natural
+language processing. wandb for experiment tracking. datasets and transformers
+from Hugging Face. Various utility modules like utils.config, utils.decoding,
+metrics, utils.duplicates, utils.override\_training\_args,
+utils.custom\_seq2seq\_trainer, utils.custom\_hf\_argument\_parser. It also
+references sled which seems like a custom module.
+
+
+
+
+%------------------------------------------------------------------------------
+
+\section*{src/unlimiformer} designed for enhancing the capabilities of various
+transformer-based language models in handling long documents. The code is quite
+extensive, and it integrates multiple components and functionalities. Here's an
+overview of its primary features and design:
+
+\paragraph{Integration with Multiple Models:} The framework is compatible with
+a variety of transformer models, including BART, T5, LED, Llama, and more. It
+achieves this through a generic Unlimiformer class that is designed to work with
+any model conforming to a certain interface.
+
+\paragraph{Enhanced Processing of Long Documents:} The core functionality of
+Unlimiformer seems to be its ability to efficiently process long documents,
+which is a common challenge in natural language processing. It likely achieves
+this through techniques like windowing, chunking, and careful memory
+management.
+
+\paragraph{Customizable Model Configuration:} The framework allows for detailed
+configuration of the model's layers, attention heads, and other parameters.
+This includes the ability to specify layers to capture, ranges for capturing
+attention, and hooks for custom processing.
+
+\paragraph{Datastore and Indexing Mechanisms:} It features components for using
+a datastore and indexing mechanism, which are likely used for efficient
+retrieval and processing of information from long documents.
+
+\paragraph{Advanced Hooking System:} Unlimiformer employs a sophisticated
+system of hooks to modify or extend the behavior of the underlying models
+during training and evaluation. This allows for dynamic modification of the
+models' internal processes.
+
+\paragraph{GPU Support and Optimization:} The code includes provisions for GPU
+utilization, ensuring efficient computation for models that require significant
+processing power.
+
+\paragraph{Debugging and Visualization Tools:} It includes functionality for
+verbose logging, generating heatmaps, and other utilities that assist in
+debugging and understanding the model's behavior.
+
+\paragraph{Conversion Utility:} There's a method to convert existing models
+into their Unlimiformer counterparts, allowing existing models to be enhanced
+with the framework's capabilities.
+
+\paragraph{summary:} This framework seems particularly suited for researchers
+and practitioners working with large-scale language models, especially in
+scenarios where handling extensive text documents is crucial. It combines
+advanced techniques in natural language processing with practical
+considerations like memory management and computational efficiency.
+
+%------------------------------------------------------------------------------
+
+\section*{src/index\_building module:} The module primarily focuses on building
+and managing datastores for efficient retrieval and indexing of data. Here's a
+summary of its key functionalities:
+
+\paragraph{Integration with FAISS:} The module uses the Facebook AI Similarity
+Search (FAISS) library, which is efficient for similarity search and clustering
+of dense vectors. FAISS is particularly useful for tasks that involve searching
+for the nearest neighbors in high-dimensional spaces.
+
+\paragraph{Datastore Classes:} There are two main classes, Datastore and
+DatastoreBatch. Datastore is designed to handle a single set of data (or
+"keys"). DatastoreBatch manages a batch of Datastore instances, allowing
+operations on multiple datastores in parallel.
+
+\paragraph{GPU Support:} Both classes support operations on GPUs, which is
+crucial for handling large-scale data efficiently. The code includes checks and
+mechanisms to ensure compatibility with GPU operations.
+
+\paragraph{Index Building and Training:} The Datastore class can create either
+a flat index or a more complex index (like IVFPQ, a type of quantizer used in
+FAISS for efficient storage and search). Index training is also supported,
+which is essential for some types of FAISS indices.
+
+\paragraph{Key Addition and Searching:} The classes provide methods to add keys
+(data points) to the datastores and to perform searches. In the context of
+machine learning models, these "keys" could be embeddings or representations of
+data points.
+
+\paragraph{Search and Reconstruction:} There is functionality for not just
+searching the nearest neighbors but also reconstructing the associated data
+points. This feature is particularly useful in scenarios where the actual data
+needs to be retrieved based on the search results.
+
+\paragraph{Efficient Handling of Large Data:} The module includes mechanisms to
+handle large datasets efficiently, such as adding keys in chunks and managing
+memory usage, especially important when working with large-scale data in
+high-dimensional spaces.
+
+\paragraph{Logging and Debugging:} The code includes logging statements, which
+would be helpful for debugging and monitoring the performance during the data
+indexing and searching operations.
+
+\paragraph{In summary,} this module seems to be a sophisticated tool for
+managing and querying large datasets in the context of machine learning, with a
+particular focus on efficient search and retrieval in high-dimensional spaces.
+The use of FAISS and the support for GPU operations indicate that it is
+designed for performance and scalability in data-intensive applications.
+
+%------------------------------------------------------------------------------
+
+\section*{src/run module} is a comprehensive Python script for fine-tuning
+sequence-to-sequence models from the Hugging Face library. This script is
+versatile and can be adapted to various sequence-to-sequence tasks. It includes
+a range of functionalities from data preprocessing to training, evaluation, and
+prediction. Here's a detailed summary of its key components:
+
+
+Main Functionality
+
+\paragraph{Argument Parsing:}
+The script uses data classes to define and parse arguments for
+the model, data, training, and specific features like Unlimiformer arguments.
+This allows for easy customization of model training and evaluation parameters.
+
+\paragraph{Logging and Debugging:}
+It sets up logging for monitoring the training process and includes a debug mode
+for troubleshooting.
+
+\paragraph{Model and Tokenizer Setup:}
+The script can load pre-trained models and tokenizers from Hugging Face's model
+repository or local paths. It supports configuration overrides and tokenizers
+with fast implementations.
+
+\paragraph{Data Loading and Preprocessing:}
+
+Handles various data sources, including custom datasets. Includes functionality
+for preprocessing data, like tokenization, handling of prefixes, and setting
+maximum sequence lengths for both source and target sequences.
+
+Can process datasets in a chunked manner, which is beneficial for large datasets.
+
+\paragraph{Training Setup:}
+
+Utilizes Hugging Face's Trainer class with custom modifications. Supports
+training with gradient checkpointing, early stopping, and evaluation during
+training. Provides mechanisms for handling GPU/TPU training and distributed
+training setups. 
+
+\paragraph{Evaluation and Prediction:}
+
+The script includes functionalities for evaluating the model on a validation
+dataset and making predictions on a test dataset. It supports various
+evaluation metrics and can output predictions in a structured format (e.g.,
+JSON).
+
+\paragraph{Custom Features and Extensions:} Includes support for the
+Unlimiformer model, which seems to be an extension or modification of standard
+sequence-to-sequence models for specific tasks or performance enhancements.
+Handles oracle training and other specialized training regimes.
+
+
+\paragraph{Environment Variables and Wandb Integration:} The script checks for
+specific environment variables and integrates with Weights \& Biases (wandb)
+for experiment tracking.
+
+\paragraph{Data Collator:} Uses a custom data collator for sequence-to-sequence
+models, handling token padding and other preprocessing details.
+
+\paragraph{Push to Hub:} Supports pushing the trained model to Hugging Face's
+model hub for easy sharing and deployment.
+
+\paragraph{Comprehensive Metrics:} Implements a wide range of metrics for
+evaluating model performance, with support for custom metric functions.
+
+\paragraph{Overall Structure:} The script is structured in a way that allows
+for flexibility and customization for different sequence-to-sequence tasks.
+It's designed to be used with command-line arguments, making it suitable for a
+variety of training environments and workflows. The modular design of argument
+parsing, model loading, data processing, and training routines enables easy
+adaptation for specific use cases in natural language processing.
+
+
+%------------------------------------------------------------------------------
+Okay, so I know that the following steps allow us to store the hidden-state
+vectors in a datastore. From unlimiformer.py:
+
+\begin{lstlisting}
+        if self.use_datastore:
+            # keys are all in datastore already!
+            if not self.reconstruct_embeddings:
+                # self.hidden_states = [torch.cat(layer_hidden_states, axis=1) for layer_hidden_states in self.hidden_states]
+                concat_hidden_states = []
+                for i in range(len(self.hidden_states)):
+                    concat_hidden_states.append(torch.cat(self.hidden_states[i], axis=1))
+                    self.hidden_states[i] = None
+                self.hidden_states = concat_hidden_states
+            for datastore, layer_hidden_states in zip(self.datastore, self.hidden_states):
+                datastore.train_index(layer_hidden_states)
+\end{lstlisting}
+
+From index\_building:
+
+\begin{lstlisting}
+    def train_index(self, keys):
+        for index, example_keys in zip(self.indices, keys):
+            index.train_index(example_keys)
+\end{lstlisting}
+
+From index\_building:
+
+\begin{lstlisting}
+    def train_index(self, keys):
+        if self.use_flat_index:
+            self.add_keys(keys=keys, index_is_trained=True)
+        else:
+            keys = keys.cpu().float()
+            ncentroids = int(keys.shape[0] / 128)
+            self.index = faiss.IndexIVFPQ(self.index, self.dimension,
+                ncentroids, code_size, 8)
+            self.index.nprobe = min(32, ncentroids)
+            # if not self.gpu_index:
+            #     keys = keys.cpu()
+
+            self.logger.info('Training index')
+            start_time = time.time()
+            self.index.train(keys)
+            self.logger.info(f'Training took {time.time() - start_time} s')
+            self.add_keys(keys=keys, index_is_trained=True)
+            # self.keys = None
+            if self.gpu_index:
+                self.move_to_gpu()
+              \end{lstlisting}
+
+The FAISS datastore is used only at test time as we need to keep the full
+hidden states in memory to update them during training. Then,
+during training, we simply store all the hidden state encodings
+(of the entire document)  in memory. However, to train the
+transformer, we need to perform KNN to select the most relevant
+tokens to the current query. \emph{So, where in the codebase do we perform
+KNN during training?}
+
+\begin{lstlisting}
+    def train_attention_forward_hook(self, module, input, output):
+        # output: (batch, time, 3 * heads * attention_dim)
+        if self.is_input_encoding_pass or self.is_first_test_decoding_step:
+            return
+        this_layer_prompt_keys = self.cur_layer_key_value_placeholder[0]
+        this_layer_prompt_values = self.cur_layer_key_value_placeholder[1]
+        with torch.no_grad():
+            query = self.process_query(output) # (batch * beam, tgt_len, head, dim)
+            # query = query[:, :, self.head_nums] # (batch * beam, head, dim)
+            
+            # query: (batch * beam, tgt_len, head, dim)
+            batch_size = this_layer_prompt_keys.shape[0]
+            tgt_len = query.shape[0] // batch_size
+            # query: (batch, tgt, head, dim)
+            query = query.reshape(batch_size, tgt_len, *query.shape[2:])
+            # this_layer_prompt_keys: (batch, head, source_len, dim)
+            # this_layer_prompt_keys.unsqueeze(1):  (batch, 1, head, source_len, dim)
+            # attn_weights:  (batch, tgt_len, head, 1, source_len)
+            # attn_weights = torch.matmul(query.unsqueeze(-2), this_layer_prompt_keys.unsqueeze(1).permute(0,1,2,4,3))
+            attn_weights = torch.matmul(this_layer_prompt_keys.unsqueeze(1), query.unsqueeze(-1)) \
+                .reshape(batch_size, tgt_len, query.shape[-2], 1, this_layer_prompt_keys.shape[-2])
+            # attn_weights = torch.matmul(query.unsqueeze(-2), this_layer_prompt_keys.unsqueeze(1)[:, :, self.head_nums]).squeeze(-2) 
+            prompt_attention_mask_to_add = (1 - self.long_inputs_mask) * -1e9 # (batch, source_len)
+            prompt_attention_mask_to_add = prompt_attention_mask_to_add.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+            attn_weights += prompt_attention_mask_to_add # (batch, beam, head, source_len)
+
+            # target_keys, target_values, topk = self.get_target_slices(output)
+            topk = min(self.actual_model_window_size, attn_weights.shape[-1])
+            top_key_scores, top_key_indices = torch.topk(attn_weights, k=min(topk, attn_weights.shape[-1]), dim=-1, sorted=True) # (batch, beam, head, tgt, trunc_source)
+
+\end{lstlisting}
+
+To explain how the `train\_attention\_forward\_hook` method in the
+`unlimiformer` module is used in the codebase, we'll need to understand the
+role of this method within the context of the model's architecture and training
+process. Forward hooks in PyTorch are a powerful feature that allows custom
+functions to be executed during the forward pass of a neural network. They are
+often used for additional processing, logging, or modifying outputs of layers.
+
+Here's how the `train\_attention\_forward\_hook` method might be typically used
+in the context of a transformer model like the one you're working with:
+
+\paragraph{Attachment to Model Layers:} This method is likely attached to
+certain layers of the transformer model, probably the attention layers. This
+attachment is usually done in the model's initialization or in a separate setup
+function.
+
+\paragraph{Functionality During Forward Pass:} During the forward pass of the
+model (i.e., during training), when the data flows through the layers to which
+this hook is attached, the `train\_attention\_forward\_hook` method gets
+executed.
+
+\paragraph{Role in KNN Search:} Given that this method performs KNN search
+outside of the datastore, it likely processes the inputs or outputs of the
+attention layers to conduct this search. It could be using the hidden states or
+other intermediate representations to find the nearest neighbors, which are
+then used to influence the attention mechanism or other parts of the model.
+
+\paragraph{Modification or Analysis of Data:} The hook can modify the data
+passing through the layer, or it might analyze or log data for further use. In
+the context of KNN, it might adjust the attention weights based on the results
+of the nearest neighbor search.
+
+\paragraph{Influence on Training Process:} Through these modifications or
+analyses, the `train\_attention\_forward\_hook` method can significantly
+influence the training process, allowing the model to consider the most
+relevant tokens (as determined by KNN) during each training step.
+
+To provide a more detailed explanation, including how exactly this method
+interacts with other components of the model, I would need to see the
+implementation of `train\_attention\_forward\_hook` and the parts of the
+codebase where it is attached to the model layers. If you can share these
+specific code snippets, I can offer a more precise analysis.
+
+\subsection*{train\_attention\_forward\_hook is called by register\_hook}
+
+\paragraph{The Role of `register\_hook` Method:}
+- In PyTorch, `register\_hook` is typically used to attach a hook function to a
+`torch.nn.Module` (like a layer in a neural network). - When `register\_hook`
+is called, it registers the specified hook function (in this case,
+`train\_attention\_forward\_hook`) to be executed during the forward pass of a
+layer. - This method is crucial for dynamically altering or augmenting the
+behavior of model layers during training or inference.
+
+\paragraph{Working of `train\_attention\_forward\_hook` Method:}
+- Once registered, `train\_attention\_forward\_hook` is called automatically
+whenever the forward pass of the attached layer is executed. - The hook
+function can access and modify the input and output of the layer to which it
+is attached. - In the context of KNN and transformers, this method likely
+processes the layer’s output (e.g., hidden states, attention weights) to
+perform a KNN search, influencing subsequent layers or the final model
+output.
+
+\paragraph{Typical Usage in the Training Process:}
+- During training, when data passes through the model, the
+`train\_attention\_forward\_hook` method would be invoked at each relevant
+layer, performing operations like KNN search. - This could be used to adjust
+the model's attention mechanism dynamically, possibly by incorporating
+information about the nearest neighbors of certain tokens or hidden states.
+
+\paragraph{Impact on Model Behavior:}
+- Such hooks can significantly impact the model's learning process,
+potentially allowing the model to focus on the most relevant information or
+to learn representations that are informed by nearest neighbor information.
+
+
+\section*{Modifying the chunking process for KG creation}
+From the `run.py` file, it seems that the chunking of data is handled in the `chunk\_dataset\_function`, which is used in the dataset `map` function to process the input data into smaller, manageable chunks. Here's how you can modify this part of the code to capture text chunks for KG construction:
+
+\subsection*{Step-by-Step Guide to Modifying the Chunking Process}
+
+1. **Identify the Chunking Function:**
+The function `chunk\_dataset\_function` appears to be responsible for breaking
+down the dataset into smaller chunks. This function is the right place to start
+modifying the code to capture text chunks.
+
+2. **Modify `chunk\_dataset\_function` to Capture Text Chunks:**
+We need to extend this function to not only process the tokenized inputs but
+also store the corresponding raw text of each chunk. Here's a conceptual
+example of what this might look like:
+
+   \begin{lstlisting}
+    def chunk_dataset_function(examples, chunk_size, capture_raw_text=False):
+        # Existing code for chunking...
+        # ...
+
+        # New code for capturing raw text chunks
+        if capture_raw_text:
+            raw_text_chunks = []
+            for ex in zip(*values):
+                ex = dict(zip(keys, ex))
+                # Assuming 'input' is the key for raw text
+                for i in range(0, len(ex['input']), chunk_size):
+                    chunk_text = ex['input'][i:i + chunk_size]
+                    raw_text_chunks.append(chunk_text)
+
+            # Store raw text chunks in the output
+            chunked['raw_text_chunks'] = raw_text_chunks
+
+        return chunked
+   \end{lstlisting}
+   3. **Pass Flag to Activate Text Chunk Capture:** When calling this function
+   as part of the dataset's `map` method, we will need to pass an additional
+   flag to activate the capture of raw text chunks:
+
+   \begin{lstlisting}
+    train_dataset = untokenized_train_dataset.map(
+        chunk_dataset_function,
+        fn_kwargs={'chunk_size': data_args.chunked_training_size, 'capture_raw_text': True},
+        # Other parameters...
+    )
+   \end{lstlisting}
+
+4. **Utilize Captured Text Chunks for KG Construction:** After these
+modifications, our dataset will have an additional field
+(`'raw\_text\_chunks'`) containing the raw text chunks. You can then use
+these text chunks to construct the knowledge graph.
+
+5. **Testing and Adjustments:**
+   Test the modified pipeline to ensure that the text chunks are being captured correctly and that they align with the tokenized inputs. You may need to adjust the chunk size or how the text is being split to ensure consistency and context preservation.
+
+\subsection*{Summary}
+
+By modifying the `chunk\_dataset\_function` to capture raw text chunks
+alongside the tokenized inputs, we can obtain the necessary data for knowledge
+graph construction. Ensure that the raw text chunks maintain the context and
+align well with the processed inputs for accurate and meaningful KG
+construction downstream.
+
+\section*{Shuffling chunks}
+Given your clarification that each example in the dataset is a distinct document-summary pair and the focus of the Unlimiformer codebase on improving long-document summarization, the understanding of the `shuffle` function's role becomes more specific:
+
+1. **Document-level Chunking:**
+   Each document is chunked into smaller parts to handle long documents that exceed the model's input size limitations. This chunking is crucial for long-document summarization where entire documents need to be processed, and context from various parts of the document is important.
+
+2. **Shuffling Chunks Within a Document:**
+   If the `shuffle` function is applied after chunking within each individual document, it means that the chunks of a single document are being shuffled. This would mix the order of the chunks within each document but would not mix chunks from different documents. The intent here could be to prevent the model from learning any sequential biases or patterns specific to the structure of each document.
+
+3. **Role of Overlapping Chunks:**
+   Since chunks are overlapping, shuffling them would still retain some level of sequential context due to this overlap. This is especially important in summarization tasks where context and continuity play a crucial role in understanding the content.
+
+4. **Training Implications:**
+   Training on shuffled chunks of individual documents may encourage the model to focus more on the content of each chunk and less on the specific order of chunks within a document. This can be beneficial in learning to summarize sections of a document independently while still having some contextual understanding due to overlapping.
+
+5. **Datastore and KNN:**
+   The tokens for each document stored in a datastore and the use of KNN in the Unlimiformer framework suggest a focus on leveraging local (within-chunk) and global (across-chunks) context for effective summarization.
+
+In summary, shuffling chunks within individual documents, in this case, could be a strategy to make the summarization model robust to variations in the structure and organization of the documents, while still leveraging the overlapping nature of chunks to maintain contextual continuity. This approach aligns with the goal of enhancing long-document summarization by focusing on content rather than structure.
+
+\end{document}
