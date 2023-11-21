@@ -72,7 +72,8 @@ class KB():
     def print(self):
         print("Relations:")
         for r in self.relations:
-            print(f"  {r}")
+            r = r['head'] + " : " + r['type'] + " : " + r['tail']
+            print(f"{r}")
     
     def get_relations(self):
         return self.relations
