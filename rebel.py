@@ -69,11 +69,13 @@ class KB():
         if not self.exists_relation(r):
             self.relations.append(r)
 
-    def print(self):
-        print("Relations:")
+    def get_triples(self):
+        triples = ""
         for r in self.relations:
             r = r['head'] + " : " + r['type'] + " : " + r['tail']
-            print(f"{r}")
+            triples += r + "\n"
+        return triples
+        
     
     def get_relations(self):
         return self.relations
