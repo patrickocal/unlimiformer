@@ -14,7 +14,9 @@ def generate_triples(long_text_data):
 
 
 # example using govreport
-dataset = load_dataset("urialon/gov_report_validation")
-example_input = dataset['validation'][0]['input']
-triples = generate_triples(example_input)
-print(triples)
+dataset = load_dataset("tau/sled", name="gov_report")
+print("length of dataset['train']", len(dataset['train']))
+example_input = dataset['train'][12988]['output']
+#print("file 8193 is", example_input)
+#triples = generate_triples(example_input)
+#print(triples)
